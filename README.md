@@ -1,194 +1,254 @@
 # Digispark HW-018 Keyboard Attack 開發環境
 
-這是一個在 Bazzite (不可變系統) 上開發 Digispark HW-018 的完整環境。
+這是一個用於開發 Digispark ATtiny85 BadUSB 攻擊的完整專案，包含多種 HID 鍵盤注入攻擊實作。
 
-## 專案結構
+## 📋 專案內容
 
-```
-hw-018-keyboard-attack/
-├── reverse_shell.ino    # Arduino sketch 程式碼
-├── build.sh             # 編譯和燒錄腳本
-└── README.md            # 本檔案
-```
+### 🎯 攻擊程式
 
-## 環境設定
+| 檔案 | 目標系統 | 函式庫 | 說明 |
+|------|---------|--------|------|
+| `zipbomb_macos.ino` | macOS | TrinketHidCombo | Zip Bomb 攻擊 |
+| `zipbomb_macos_digi.ino` | macOS | DigiKeyboard | Zip Bomb (推薦) |
+| `zipbomb_linux.ino` | Linux | TrinketHidCombo | Zip Bomb 攻擊 |
+| `rickroll_*.ino` | macOS | 多種 | Rick Roll 惡作劇 |
+| `reverse_shell*.ino` | 多平台 | DigiKeyboard | 反向 Shell |
 
-### 1. 系統需求
+### 📚 文件
 
-- Bazzite (或其他不可變 Linux 系統)
-- Distrobox 容器
-- USB udev 規則已設定
+- **ZIPBOMB_README.md**: Zip Bomb 完整技術文件
+- **MACOS_TROUBLESHOOTING.md**: macOS 相容性問題排除
+- **HOSTS_REDIRECT_README.md**: DNS 劫持攻擊說明
+- **RICKROLL_README.md**: Rick Roll 攻擊說明
 
-### 2. Distrobox 容器
+### 🔧 工具
 
-開發環境位於 `arduino-dev` 容器中，已安裝：
+- **extract_zipbomb.py**: Python 遞迴解壓工具
+- **build_*.sh**: 各種版本的編譯腳本
+- **cleanup_*.sh**: 清理腳本
 
-- Arduino 工具鏈 (avr-gcc, avrdude)
-- Digistump 板支援
-- Micronucleus 燒錄工具
+---
 
-### 3. 進入開發環境
+## 🚀 快速開始
 
-```bash
-cd ~/Developer/hw-018-keyboard-attack
-distrobox enter arduino-dev
-```
+### 方法 1：直接安裝（推薦）
 
-## 使用方法
-
-### 編譯程式
+適用於任何 Linux 發行版：
 
 ```bash
-distrobox enter arduino-dev -- ./build.sh compile
-```
+# 1. 安裝必要工具
+# Ubuntu/Debian
+sudo apt install avr-gcc avr-libc avrdude micronucleus
 
-這會：
-- 編譯 Arduino 核心檔案
-- 編譯 DigiKeyboard 函式庫
-- 編譯你的 sketch
-- 生成 `.hex` 檔案於 `build/` 目錄
+# Fedora
+sudo dnf install avr-gcc avr-gcc-c++ avr-libc avrdude
 
-### 燒錄到 Digispark
+# Arch Linux
+sudo pacman -S avr-gcc avr-libc avrdude
 
-```bash
-distrobox enter arduino-dev -- ./build.sh upload
-```
+# 2. 安裝 Digistump 板支援
+arduino --install-boards digistump:avr
 
-執行後：
-1. 螢幕會提示「請在 60 秒內插入 Digispark 裝置」
-2. **拔除** Digispark（如果已插入）
-3. **重新插入** Digispark
-4. micronucleus 會自動偵測並開始燒錄
-5. 燒錄完成後，Digispark 會自動重啟並執行程式
+# 3. 設定 udev 規則
+sudo tee /etc/udev/rules.d/49-micronucleus.rules << 'EOF'
+SUBSYSTEM=="usb", ATTR{idVendor}=="16d0", ATTR{idProduct}=="0753", MODE="0666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="16c0", ATTR{idProduct}=="27db", MODE="0666"
+EOF
 
-### 編譯 + 燒錄 (一次完成)
-
-```bash
-distrobox enter arduino-dev -- ./build.sh all
-```
-
-### 清理建置檔案
-
-```bash
-distrobox enter arduino-dev -- ./build.sh clean
-```
-
-## 程式碼說明
-
-### reverse_shell.ino
-
-這個程式實作了一個 BadUSB 攻擊載荷，包含：
-
-1. **Windows Payload**: 透過 `Win+R` 開啟 PowerShell，執行反向 Shell
-2. **macOS Payload**: 透過 Spotlight 開啟 Terminal，執行 bash 反向 Shell
-
-### 設定攻擊者 IP/Port
-
-編輯 `reverse_shell.ino` 中的設定：
-
-```cpp
-#define ATTACKER_IP "192.168.1.100"
-#define ATTACKER_PORT "4444"
-```
-
-### 監聽連線 (攻擊者端)
-
-在攻擊者機器上執行：
-
-```bash
-nc -lvnp 4444
-```
-
-## 硬體規格
-
-- **晶片**: ATtiny85
-- **時脈**: 16.5 MHz
-- **記憶體**: 6KB Flash / 512B RAM
-- **USB**: V-USB (軟體實作 USB HID)
-
-## 故障排除
-
-### 1. 找不到 Digispark 裝置
-
-檢查 USB 裝置：
-
-```bash
-lsusb | grep -i "16d0\|16c0"
-```
-
-應該會看到：
-- Bootloader 模式: `ID 16d0:0753`
-- 運行模式: `ID 16c0:27db`
-
-### 2. 權限被拒
-
-確認 udev 規則已載入：
-
-```bash
-cat /etc/udev/rules.d/49-micronucleus.rules
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-### 3. 編譯錯誤
+### 方法 2：使用容器（適用於不可變系統）
 
-確認 Digistump 板支援已安裝：
+適用於 Fedora Silverblue、Bazzite 等不可變系統：
 
 ```bash
+# 建立開發容器
+distrobox create --name arduino-dev --image ubuntu:22.04
+
+# 進入容器並安裝工具
 distrobox enter arduino-dev
-ls ~/.arduino15/packages/digistump/hardware/avr/1.6.7/libraries/
+sudo apt update
+sudo apt install -y avr-gcc avr-libc avrdude micronucleus
+
+# 安裝 Digistump 板支援
+# (參考上方步驟 2)
 ```
 
-應該會看到 `DigisparkKeyboard` 目錄。
+---
 
-### 4. 燒錄失敗
+## 💣 Zip Bomb 攻擊使用
 
-常見原因：
-- Digispark 插入太早或太晚
-- USB 連接不穩定
-- Bootloader 損壞
+### macOS 版本（DigiKeyboard - 推薦）
 
-解決方法：
-1. 確保 Digispark 在看到提示後才插入
-2. 換個 USB 埠試試
-3. 使用較短的 USB 線
+```bash
+# 編譯並燒錄
+./build_zipbomb_macos_digi.sh all
 
-## 安全警告
+# 或使用容器
+distrobox enter arduino-dev -- ./build_zipbomb_macos_digi.sh all
+```
 
-這個工具用於**授權的資安測試**環境，包括：
+### Linux 版本
 
-- 學術課程作業
-- CTF 競賽
-- 授權的滲透測試專案
-- 安全研究
+```bash
+# 編譯並燒錄
+./build_zipbomb_linux.sh all
 
-**未經授權在他人系統上使用此工具屬於違法行為**。
+# 或使用容器
+distrobox enter arduino-dev -- ./build_zipbomb_linux.sh all
+```
 
-## 技術細節
+**詳細說明**: 參見 [ZIPBOMB_README.md](ZIPBOMB_README.md)
 
-### DigiKeyboard 函式庫
+---
 
-- `sendKeyStroke(key, modifier)`: 傳送單一按鍵
-  - `KEY_R`: R 鍵
-  - `MOD_GUI_LEFT`: 左 Windows/Cmd 鍵
-- `print(string)`: 輸入字串（不換行）
-- `println(string)`: 輸入字串並換行
-- `delay(ms)`: 延遲毫秒
+## 🎵 其他攻擊
 
-### 鍵盤修飾鍵
+### Rick Roll 攻擊
 
-- `MOD_GUI_LEFT`: Windows/Cmd
-- `MOD_CONTROL_LEFT`: Ctrl
-- `MOD_SHIFT_LEFT`: Shift
-- `MOD_ALT_LEFT`: Alt
+```bash
+./build.sh all
+# 詳細說明: RICKROLL_README.md
+```
 
-## 參考資料
+### 反向 Shell
 
+```bash
+# 編輯 IP/Port
+vim reverse_shell_optimized.ino
+
+# 編譯燒錄
+./build.sh all
+```
+
+### DNS 劫持
+
+```bash
+# 詳細說明: HOSTS_REDIRECT_README.md
+```
+
+---
+
+## 🔧 編譯與燒錄
+
+### 基本流程
+
+1. **編譯**
+   ```bash
+   ./build_*.sh compile
+   ```
+
+2. **燒錄**
+   ```bash
+   ./build_*.sh upload
+   # 等待提示後插入 Digispark
+   ```
+
+3. **一次完成**
+   ```bash
+   ./build_*.sh all
+   ```
+
+### 使用容器環境
+
+如果使用容器（Distrobox、Podman、Docker）：
+
+```bash
+# Distrobox
+distrobox enter arduino-dev -- ./build_zipbomb_macos_digi.sh all
+
+# Docker
+docker run -it --device=/dev/bus/usb ubuntu:22.04
+```
+
+---
+
+## 🛠️ 硬體規格
+
+- **晶片**: ATtiny85
+- **時脈**: 16.5 MHz
+- **Flash**: 6KB
+- **RAM**: 512B
+- **USB**: V-USB (軟體實作)
+
+---
+
+## 🐛 故障排除
+
+### 找不到 Digispark
+
+```bash
+# 檢查 USB 裝置
+lsusb | grep -i "16d0\|16c0"
+```
+
+**應該看到**:
+- Bootloader: `ID 16d0:0753`
+- 運行中: `ID 16c0:27db`
+
+### 權限問題
+
+```bash
+# 檢查 udev 規則
+cat /etc/udev/rules.d/49-micronucleus.rules
+
+# 重新載入
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+### macOS 無法識別
+
+參見 [MACOS_TROUBLESHOOTING.md](MACOS_TROUBLESHOOTING.md)
+
+**快速解決**: 使用 `zipbomb_macos_digi.ino` (DigiKeyboard 版本)
+
+### 編譯錯誤
+
+```bash
+# 檢查 Digistump 板支援
+ls ~/.arduino15/packages/digistump/hardware/avr/1.6.7/libraries/
+
+# 應該看到 DigisparkKeyboard 目錄
+```
+
+---
+
+## ⚠️ 安全警告
+
+本專案僅供**授權的教育與研究**用途：
+
+- ✅ 學術課程作業
+- ✅ CTF 競賽練習
+- ✅ 授權的滲透測試
+- ✅ 安全研究
+- ✅ 個人虛擬機測試
+
+❌ **未經授權使用屬違法行為**
+
+---
+
+## 📖 參考資料
+
+### 官方文件
 - [Digistump Wiki](http://digistump.com/wiki/)
 - [Micronucleus Bootloader](https://github.com/micronucleus/micronucleus)
-- [V-USB Documentation](https://www.obdev.at/products/vusb/)
 - [ATtiny85 Datasheet](https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-2586-AVR-8-bit-Microcontroller-ATtiny25-ATtiny45-ATtiny85_Datasheet.pdf)
 
-## 授權
+### 相關專案
+- [iamtraction/ZOD](https://github.com/iamtraction/ZOD) - 42.zip Zip Bomb
+- [Adafruit-Trinket-USB](https://github.com/adafruit/Adafruit-Trinket-USB) - TrinketHidCombo
+
+### 安全資源
+- [OWASP BadUSB](https://owasp.org/www-community/attacks/BadUSB)
+- [HID Attack Vectors (MITRE ATT&CK)](https://attack.mitre.org/techniques/T1091/)
+
+---
+
+## 📄 授權
 
 僅供教育和授權測試使用。
+
+**最後更新**: 2025-12-17
