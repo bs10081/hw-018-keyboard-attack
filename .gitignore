@@ -1,0 +1,25 @@
+# 建置目錄
+build/
+build_trinket/
+
+# Arduino 臨時檔
+*.o
+*.elf
+*.hex
+*.lst
+*.map
+*.d
+
+# 編輯器檔案
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Linux
+.directory
