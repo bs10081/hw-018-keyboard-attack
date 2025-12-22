@@ -245,6 +245,9 @@ ls ~/.arduino15/packages/digistump/hardware/avr/1.6.7/libraries/
 - [OWASP BadUSB](https://owasp.org/www-community/attacks/BadUSB)
 - [HID Attack Vectors (MITRE ATT&CK)](https://attack.mitre.org/techniques/T1091/)
 
+### 腳位圖
+-  https://sites.google.com/view/newer4arduino/%E6%8E%A7%E5%88%B6%E6%9D%BF/attiny85
+
 ---
 
 ## 📄 授權
